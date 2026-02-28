@@ -1,0 +1,107 @@
+from __future__ import annotations
+import uuid
+from typing import List, Dict
+import pandas as pd
+import yfinance as yf
+from ta.trend import SMAIndicator, MACD
+from ta.momentum import RSIIndicator
+from ta.volatility import AverageTrueRange
+
+from .scoring import score_candidate, compute_plan
+
+# Hackathon-friendly universe: keep small to avoid rate limits.
+NASDAQ_100_SAMPLE = [
+    "AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","AMD","INTC","AVGO",
+    "NFLX","COST","PEP","ADBE","CSCO","QCOM","TXN","INTU","AMAT","PYPL",
+]
+
+def fetch_ohlcv(ticker: str, period: str = "6mo", interval: str = "1d") -> pd.DataFrame:
+    df = yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False)
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df = df.reset_index()
+    # standardize columns
+    df.columns = [c.lower().replace(" ", "_") for c in df.columns]
+    return df
+
+def compute_features(df: pd.DataFrame) -> Dict[str, float]:
+    """
+    Compute last-row indicators from df.
+    Expects columns: open/high/low/close/volume
+    """
+    close = df["close"]
+    high = df["high"]
+    low = df["low"]
+
+    sma50 = SMAIndicator(close, window=50).sma_indicator()
+    sma200 = SMAIndicator(close, window=200).sma_indicator()
+
+    rsi14 = RSIIndicator(close, window=14).rsi()
+
+    macd = MACD(close, window_slow=26, window_fast=12, window_sign=9)
+    macd_hist = macd.macd_diff()
+
+    atr14 = AverageTrueRange(high, low, close, window=14).average_true_range()
+
+    # volume ratio: last volume / avg 20
+    vol20 = df["volume"].rolling(20).mean()
+    vol_ratio = (df["volume"].iloc[-1] / vol20.iloc[-1]) if vol20.iloc[-1] and vol20.iloc[-1] > 0 else 1.0
+
+    last_close = float(close.iloc[-1])
+    last_atr = float(atr14.iloc[-1]) if not pd.isna(atr14.iloc[-1]) else 0.0
+    atrp = (last_atr / last_close) if last_close > 0 else 0.0
+
+    return {
+        "close": round(last_close, 4),
+        "sma50": float(sma50.iloc[-1]) if not pd.isna(sma50.iloc[-1]) else float("nan"),
+        "sma200": float(sma200.iloc[-1]) if not pd.isna(sma200.iloc[-1]) else float("nan"),
+        "rsi14": float(rsi14.iloc[-1]) if not pd.isna(rsi14.iloc[-1]) else float("nan"),
+        "macd_hist": float(macd_hist.iloc[-1]) if not pd.isna(macd_hist.iloc[-1]) else float("nan"),
+        "atr14": last_atr,
+        "vol_ratio": float(vol_ratio),
+        "atrp": float(atrp),
+    }
+
+def scan_universe(universe: str, risk_dollars: float, top_n: int = 3) -> dict:
+    tickers = NASDAQ_100_SAMPLE if universe == "nasdaq100" else NASDAQ_100_SAMPLE
+
+    rows = []
+    for t in tickers:
+        df = fetch_ohlcv(t)
+        if df.empty or len(df) < 60:
+            continue
+        feat = compute_features(df)
+
+        # basic trend filter to reduce noise
+        if not (feat["close"] > feat["sma50"] and feat["sma50"] > feat["sma200"]):
+            continue
+
+        score, breakdown = score_candidate(feat)
+        plan = compute_plan(price=feat["close"], atr=feat["atr14"], risk_dollars=risk_dollars)
+
+        rows.append({
+            "ticker": t,
+            "score": score,
+            "breakdown": breakdown,
+            "indicators": {
+                "close": round(feat["close"], 2),
+                "sma50": round(feat["sma50"], 2),
+                "sma200": round(feat["sma200"], 2),
+                "rsi14": round(feat["rsi14"], 2),
+                "macd_hist": round(feat["macd_hist"], 4),
+                "atr14": round(feat["atr14"], 2),
+                "vol_ratio": round(feat["vol_ratio"], 2),
+                "atrp": round(feat["atrp"], 4),
+            },
+            "plan": plan
+        })
+
+    rows.sort(key=lambda x: x["score"], reverse=True)
+    run_id = str(uuid.uuid4())
+    return {
+        "run_id": run_id,
+        "top": rows[:max(1, top_n)],
+        "top10": rows[:10],
+        "universe_size": len(tickers),
+        "scanned": len(rows),
+    }
