@@ -4,12 +4,16 @@ import time
 from typing import List, Dict
 import httpx
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BRIGHTDATA_API_KEY = os.getenv("BRIGHTDATA_API_KEY", "")
 BRIGHTDATA_SERP_ZONE = os.getenv("BRIGHTDATA_SERP_ZONE", "")
 
 # simple in-memory cache: query -> (expiry, headlines)
 _CACHE: Dict[str, tuple[float, List[dict]]] = {}
+
 
 def _cache_get(key: str):
     v = _CACHE.get(key)
@@ -21,8 +25,10 @@ def _cache_get(key: str):
         return None
     return data
 
+
 def _cache_set(key: str, data: List[dict], ttl_sec: int = 900):
     _CACHE[key] = (time.time() + ttl_sec, data)
+
 
 async def fetch_serp_html(query: str) -> str:
     if not BRIGHTDATA_API_KEY or not BRIGHTDATA_SERP_ZONE:
@@ -31,16 +37,19 @@ async def fetch_serp_html(query: str) -> str:
     payload = {
         "zone": BRIGHTDATA_SERP_ZONE,
         "url": f"https://www.google.com/search?q={query}",
-        "format": "raw"
+        "format": "raw",
     }
     headers = {
         "Authorization": f"Bearer {BRIGHTDATA_API_KEY}",
         "Content-Type": "application/json",
     }
     async with httpx.AsyncClient(timeout=30) as client:
-        r = await client.post("https://api.brightdata.com/request", json=payload, headers=headers)
+        r = await client.post(
+            "https://api.brightdata.com/request", json=payload, headers=headers
+        )
         r.raise_for_status()
         return r.text
+
 
 def parse_google_headlines(html: str, limit: int = 5) -> List[dict]:
     if not html:
@@ -62,6 +71,7 @@ def parse_google_headlines(html: str, limit: int = 5) -> List[dict]:
         if len(results) >= limit:
             break
     return results
+
 
 async def get_headlines_for_ticker(ticker: str, limit: int = 5) -> List[dict]:
     key = f"news:{ticker}:{limit}"

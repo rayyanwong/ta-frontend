@@ -13,21 +13,24 @@ from .llm import explain_pick
 
 app = FastAPI(title="SignalStack", version="0.1.0")
 
-# For local dev; in production you can lock this down
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=["http://localhost:5173"],  # Your Vite URL
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/api/health")
 def health():
     return {"ok": True}
 
+
 @app.post("/api/scan", response_model=ScanResponse)
 async def scan(req: ScanRequest):
+
+    print("scan request received: ")
     base = scan_universe(req.universe, req.risk_dollars, top_n=req.top_n)
 
     rows = base["top"]
@@ -37,7 +40,7 @@ async def scan(req: ScanRequest):
         tickers = [r["ticker"] for r in rows]
         results = await asyncio.gather(
             *[get_headlines_for_ticker(t, limit=3) for t in tickers],
-            return_exceptions=True
+            return_exceptions=True,
         )
         for t, res in zip(tickers, results):
             if isinstance(res, Exception):
@@ -60,23 +63,25 @@ async def scan(req: ScanRequest):
                 "score_breakdown": row["breakdown"],
                 "indicators": row["indicators"],
                 "plan": row["plan"],
-                "headlines": hl
+                "headlines": hl,
             }
             explained = await explain_pick(llm_payload)
             reason_bullets = explained.get("bullets", [])[:3]
             risk_note = explained.get("risk", None)
 
-        candidates.append(Candidate(
-            ticker=row["ticker"],
-            score=row["score"],
-            score_breakdown=row["breakdown"],
-            indicators=row["indicators"],
-            plan=TradePlan(**row["plan"]),
-            headlines=headlines,
-            reasoning=None,
-            reason_bullets=reason_bullets,
-            risk_note=risk_note,
-        ))
+        candidates.append(
+            Candidate(
+                ticker=row["ticker"],
+                score=row["score"],
+                score_breakdown=row["breakdown"],
+                indicators=row["indicators"],
+                plan=TradePlan(**row["plan"]),
+                headlines=headlines,
+                reasoning=None,
+                reason_bullets=reason_bullets,
+                risk_note=risk_note,
+            )
+        )
 
     return ScanResponse(
         run_id=base["run_id"],
@@ -86,14 +91,19 @@ async def scan(req: ScanRequest):
             "universe_size": base["universe_size"],
             "scanned": base["scanned"],
             "include_headlines": req.include_headlines,
-        }
+        },
     )
+
 
 # ---- Serve frontend (built Vite) from /frontend/dist via Docker build ----
 FRONTEND_DIST = os.getenv("FRONTEND_DIST", "/app/frontend/dist")
 
 if os.path.isdir(FRONTEND_DIST):
-    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="assets")
+    app.mount(
+        "/assets",
+        StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")),
+        name="assets",
+    )
 
     @app.get("/{full_path:path}")
     def serve_spa(full_path: str):

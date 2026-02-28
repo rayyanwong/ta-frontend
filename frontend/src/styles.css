@@ -1,30 +1,162 @@
-:root { font-family: ui-sans-serif, system-ui; }
-body { margin: 0; background: #0b0f17; color: #e7edf7; }
+:root { 
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+}
+
+body { 
+    margin: 0; 
+    background: #0b0f17; 
+    color: #e7edf7; 
+    height: 100vh; /* Needed for the chat full-height layout */
+}
+
+/* Existing Layout Wrappers */
 .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
 .header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
-h1 { margin: 0; font-size: 28px; }
-p { margin: 6px 0 0; opacity: 0.8; }
+
+/* --- Chat Container --- */
+.chat-window {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 900px;
+    margin: 0 auto;
+    background: #0f1623; /* Matching your panel color */
+    border-left: 1px solid #1f2a3a;
+    border-right: 1px solid #1f2a3a;
+    overflow: hidden;
+}
+
+/* Chat Header */
+.chat-header {
+    background: #18243a;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #1f2a3a;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #3b82f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border: 2px solid #2a3b55;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    box-shadow: 0 0 8px #10b981;
+}
+
+/* Message Feed */
+.message-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background-image: radial-gradient(#1f2a3a 1px, transparent 1px);
+    background-size: 20px 20px; /* Subtle grid pattern */
+}
+
+/* Bubble Styling */
+.bubble {
+    position: relative;
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 15px;
+    line-height: 1.5;
+    animation: fadeIn 0.2s ease;
+}
+
+.bubble.user {
+    align-self: flex-end;
+    background: #3b82f6;
+    color: white;
+    border-bottom-right-radius: 2px;
+}
+
+.bubble.mentor {
+    align-self: flex-start;
+    background: #1f2a3a;
+    color: #e7edf7;
+    border-bottom-left-radius: 2px;
+    border: 1px solid #2a3b55;
+}
+
+.timestamp {
+    display: block;
+    font-size: 10px;
+    margin-top: 4px;
+    opacity: 0.6;
+    text-align: right;
+}
+
+/* Input Area */
+.input-bar {
+    padding: 16px;
+    background: #0f1623;
+    border-top: 1px solid #1f2a3a;
+    display: flex;
+    gap: 12px;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 12px 18px;
+    border-radius: 24px;
+    border: 1px solid #2a3b55;
+    background: #0b0f17;
+    color: #e7edf7;
+    outline: none;
+}
+
+.chat-input:focus {
+    border-color: #3b82f6;
+}
+
+.send-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s;
+}
+
+.send-btn:active { transform: scale(0.9); }
+.send-btn:disabled { opacity: 0.5; background: #2a3b55; }
+
+/* Typing Animation */
+.typing-dots { display: flex; gap: 4px; padding: 10px; }
+.dot { 
+    width: 6px; height: 6px; background: #8ab4ff; border-radius: 50%; 
+    animation: bounce 1.4s infinite ease-in-out; 
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+/* --- Your Existing Panel/Card Styles below --- */
 .panel { margin-top: 18px; padding: 14px; border: 1px solid #1f2a3a; border-radius: 12px; background: #0f1623; }
-.row { display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
-label { display:flex; gap:10px; align-items:center; }
-input[type="number"] { width: 110px; padding: 8px; border-radius: 10px; border: 1px solid #2a3b55; background:#0b0f17; color:#e7edf7; }
-.check { opacity: 0.9; }
-.meta { margin-top: 10px; opacity: 0.8; }
-.err { margin-top: 10px; color: #ff7b7b; }
 .btn { padding: 10px 14px; border-radius: 12px; border: 1px solid #2a3b55; background: #18243a; color:#e7edf7; cursor:pointer; }
-.btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.grid { margin-top: 18px; display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-@media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
-.card { padding: 14px; border: 1px solid #1f2a3a; border-radius: 12px; background: #0f1623; }
-.cardTop { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
-.ticker { font-size: 22px; font-weight: 700; }
-.sub { opacity: 0.8; margin-top: 4px; }
-.btnSmall { padding: 8px 10px; border-radius: 10px; border: 1px solid #2a3b55; background: #141f33; color:#e7edf7; cursor:pointer; }
-.kv { margin-top: 10px; display:grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.kv div { display:flex; justify-content:space-between; padding: 8px; border-radius: 10px; background:#0b0f17; border:1px solid #1f2a3a; }
-.kv span { opacity: 0.75; }
-.split { margin-top: 10px; display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-h3 { margin: 10px 0 6px; font-size: 14px; opacity: 0.9; }
-ul { margin: 0; padding-left: 18px; opacity: 0.9; }
-.links a { color: #8ab4ff; text-decoration: none; }
-.links a:hover { text-decoration: underline; }
+/* ... (keep the rest of your card/grid styles) */

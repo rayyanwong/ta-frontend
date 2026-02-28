@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { scan } from "./api";
 import type { Candidate } from "./types";
-import "./styles.css";
+import "./styles.css"
+import Chat from "./Chat";
+import TradeLogger from "./TradeLogger";
 
 export default function App() {
   const [risk, setRisk] = useState<number>(50);
@@ -15,15 +17,29 @@ export default function App() {
     setErr(null);
     setLoading(true);
     setCandidates([]);
+
+
     try {
-      const res = await scan({
-        universe: "nasdaq100",
-        risk_dollars: risk,
-        include_headlines: includeHeadlines,
-        top_n: 3,
+
+
+      const res = await fetch("http://localhost:8080/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          universe: "nasdaq100",
+          risk_dollars: risk,
+          include_headlines: includeHeadlines,
+          top_n: 3,
+        }),
       });
-      setCandidates(res.candidates);
-      setMeta(res.meta);
+
+
+      const data = await res.json();
+      console.log("data: ", data)
+      if (data.success) {
+        //  setCandidates(res.candidates);
+        // setMeta(res.meta);
+      }
     } catch (e: any) {
       setErr(e?.message ?? "Unknown error");
     } finally {
@@ -77,6 +93,14 @@ export default function App() {
         {candidates.map((c) => (
           <Card key={c.ticker} c={c} />
         ))}
+        <h1>TradeLogger</h1>
+        <div>
+          <TradeLogger />
+        </div>
+        <h1>Chat</h1>
+        <div>
+          <Chat />
+        </div>
       </main>
     </div>
   );
@@ -122,7 +146,7 @@ R:R: ${c.plan.rr}`;
         <div>
           <h3>Indicators</h3>
           <ul>
-            {["close","sma50","sma200","rsi14","macd_hist","atr14","vol_ratio"].map((k) => (
+            {["close", "sma50", "sma200", "rsi14", "macd_hist", "atr14", "vol_ratio"].map((k) => (
               <li key={k}>{k}: {c.indicators[k]}</li>
             ))}
           </ul>
