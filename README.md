@@ -12,8 +12,9 @@ Backend (Python) and frontend (Vite + React + TypeScript) monorepo.
 **Backend**
 
 ```bash
-cd backend && pip install -r requirements.txt && python -m app.main
+cd backend && pip install -r requirements.txt && python -m main.py
 ```
+FOR REFERENCE: USE THE main.py in backend/! The main.py in app/ does not work
 
 **Frontend**
 
