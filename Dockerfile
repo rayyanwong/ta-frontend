@@ -19,6 +19,7 @@ COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 COPY backend/ /app/backend/
+RUN touch ./backend/__init__.py  
 COPY --from=frontend /frontend/dist /app/frontend/dist
 
 ENV FRONTEND_DIST=/app/frontend/dist
@@ -28,3 +29,4 @@ ENV PYTHONPATH=/app/backend
 ENV PORT=8080
 
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD exec uvicorn backend.app.main:app --host 0.0.0.0 --port 8080  
