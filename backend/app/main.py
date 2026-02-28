@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,7 @@ from fastapi.responses import FileResponse
 from .models import ScanRequest, ScanResponse, Candidate, Headline, TradePlan
 from .scan import scan_universe
 from .brightdata import get_headlines_for_ticker
+from .llm import explain_pick
 
 app = FastAPI(title="SignalStack", version="0.1.0")
 
@@ -28,12 +30,41 @@ def health():
 async def scan(req: ScanRequest):
     base = scan_universe(req.universe, req.risk_dollars, top_n=req.top_n)
 
+    rows = base["top"]
+
+    headlines_map = {}
+    if req.include_headlines:
+        tickers = [r["ticker"] for r in rows]
+        results = await asyncio.gather(
+            *[get_headlines_for_ticker(t, limit=3) for t in tickers],
+            return_exceptions=True
+        )
+        for t, res in zip(tickers, results):
+            if isinstance(res, Exception):
+                headlines_map[t] = []
+            else:
+                headlines_map[t] = res
+
     candidates = []
-    for row in base["top"]:
-        headlines = []
-        if req.include_headlines:
-            hl = await get_headlines_for_ticker(row["ticker"], limit=3)
-            headlines = [Headline(**h) for h in hl]
+    for row in rows:
+        hl = headlines_map.get(row["ticker"], [])
+        headlines = [Headline(**h) for h in hl]
+
+        reason_bullets = []
+        risk_note = None
+
+        if req.include_reasoning:
+            llm_payload = {
+                "ticker": row["ticker"],
+                "score": row["score"],
+                "score_breakdown": row["breakdown"],
+                "indicators": row["indicators"],
+                "plan": row["plan"],
+                "headlines": hl
+            }
+            explained = await explain_pick(llm_payload)
+            reason_bullets = explained.get("bullets", [])[:3]
+            risk_note = explained.get("risk", None)
 
         candidates.append(Candidate(
             ticker=row["ticker"],
@@ -42,7 +73,9 @@ async def scan(req: ScanRequest):
             indicators=row["indicators"],
             plan=TradePlan(**row["plan"]),
             headlines=headlines,
-            reasoning=None
+            reasoning=None,
+            reason_bullets=reason_bullets,
+            risk_note=risk_note,
         ))
 
     return ScanResponse(

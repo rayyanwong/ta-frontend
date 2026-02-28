@@ -7,6 +7,7 @@ class ScanRequest(BaseModel):
     universe: Universe = "nasdaq100"
     risk_dollars: float = Field(default=50, gt=0)
     include_headlines: bool = True
+    include_reasoning: bool = True
     top_n: int = Field(default=3, ge=1, le=10)
 
 class Headline(BaseModel):
@@ -31,6 +32,8 @@ class Candidate(BaseModel):
     plan: TradePlan
     headlines: List[Headline] = []
     reasoning: Optional[str] = None
+    reason_bullets: List[str] = []
+    risk_note: Optional[str] = None
 
 class ScanResponse(BaseModel):
     run_id: str

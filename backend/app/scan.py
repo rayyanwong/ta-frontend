@@ -1,5 +1,7 @@
 from __future__ import annotations
+import json
 import uuid
+from pathlib import Path
 from typing import List, Dict
 import pandas as pd
 import yfinance as yf
@@ -9,11 +11,19 @@ from ta.volatility import AverageTrueRange
 
 from .scoring import score_candidate, compute_plan
 
-# Hackathon-friendly universe: keep small to avoid rate limits.
-NASDAQ_100_SAMPLE = [
-    "AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","AMD","INTC","AVGO",
-    "NFLX","COST","PEP","ADBE","CSCO","QCOM","TXN","INTU","AMAT","PYPL",
-]
+DATA_DIR = Path(__file__).resolve().parent / "data"
+NASDAQ100_PATH = DATA_DIR / "nasdaq100.json"
+
+def load_nasdaq100() -> List[str]:
+    if NASDAQ100_PATH.exists():
+        return json.loads(NASDAQ100_PATH.read_text())
+    # fallback (if file missing) to your original sample to avoid hard crash
+    return [
+        "AAPL","MSFT","NVDA","AMZN","GOOGL","META","TSLA","AMD","INTC","AVGO",
+        "NFLX","COST","PEP","ADBE","CSCO","QCOM","TXN","INTU","AMAT","PYPL",
+    ]
+
+NASDAQ_100 = load_nasdaq100()
 
 def fetch_ohlcv(ticker: str, period: str = "6mo", interval: str = "1d") -> pd.DataFrame:
     df = yf.download(ticker, period=period, interval=interval, auto_adjust=True, progress=False)
@@ -63,7 +73,7 @@ def compute_features(df: pd.DataFrame) -> Dict[str, float]:
     }
 
 def scan_universe(universe: str, risk_dollars: float, top_n: int = 3) -> dict:
-    tickers = NASDAQ_100_SAMPLE if universe == "nasdaq100" else NASDAQ_100_SAMPLE
+    tickers = NASDAQ_100 if universe == "nasdaq100" else NASDAQ_100
 
     rows = []
     for t in tickers:
